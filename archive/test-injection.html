@@ -1,0 +1,154 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Test Wallet Injection</title>
+    <style>
+        body {
+            font-family: monospace;
+            padding: 20px;
+            background: #1e1e1e;
+            color: #fff;
+        }
+        .box {
+            background: #2d2d2d;
+            padding: 15px;
+            margin: 10px 0;
+            border-radius: 5px;
+            border-left: 4px solid #007acc;
+        }
+        .success { border-left-color: #4ec9b0; }
+        .error { border-left-color: #f48771; }
+        button {
+            background: #007acc;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            cursor: pointer;
+            margin: 5px;
+            border-radius: 3px;
+        }
+        button:hover {
+            background: #005a9e;
+        }
+    </style>
+</head>
+<body>
+    <h1>🧩 DevNet Wallet Injection Test</h1>
+    
+    <div class="box" id="status">
+        <h3>Checking wallet injection...</h3>
+    </div>
+
+    <div class="box">
+        <h3>Actions:</h3>
+        <button onclick="checkWallet()">Check Wallet</button>
+        <button onclick="requestAccounts()">Request Accounts</button>
+        <button onclick="getChainId()">Get Chain ID</button>
+    </div>
+
+    <div class="box">
+        <h3>Console Output:</h3>
+        <pre id="output"></pre>
+    </div>
+
+    <script>
+        function log(msg) {
+            const output = document.getElementById('output');
+            output.textContent += msg + '\n';
+            console.log(msg);
+        }
+
+        function checkWallet() {
+            const statusDiv = document.getElementById('status');
+            document.getElementById('output').textContent = '';
+            
+            log('=== Wallet Detection ===');
+            log('window.ethereum: ' + (window.ethereum ? 'EXISTS ✓' : 'NOT FOUND ✗'));
+            log('window.devnetWallet: ' + (window.devnetWallet ? 'EXISTS ✓' : 'NOT FOUND ✗'));
+            log('window.testnetWallet (legacy): ' + (window.testnetWallet ? 'EXISTS ✓' : 'NOT FOUND ✗'));
+            log('window.solanaDevnetWallet: ' + (window.solanaDevnetWallet ? 'EXISTS ✓' : 'NOT FOUND ✗'));
+            log('window.solanaTestnetWallet (legacy): ' + (window.solanaTestnetWallet ? 'EXISTS ✓' : 'NOT FOUND ✗'));
+            
+            if (window.ethereum) {
+                log('\n=== Ethereum Provider Properties ===');
+                log('isDevnetWallet: ' + window.ethereum.isDevnetWallet);
+                log('isTestnetWallet (legacy flag): ' + window.ethereum.isTestnetWallet);
+                log('isMetaMask: ' + window.ethereum.isMetaMask);
+                log('isPhantom: ' + window.ethereum.isPhantom);
+                log('request method: ' + typeof window.ethereum.request);
+                
+                statusDiv.className = 'box success';
+                while (statusDiv.firstChild) {
+                    statusDiv.removeChild(statusDiv.firstChild);
+                }
+                const h3 = document.createElement('h3');
+                h3.textContent = '✓ Wallet Detected!';
+                statusDiv.appendChild(h3);
+                const p = document.createElement('p');
+                p.textContent = 'DevNet Wallet is properly injected.';
+                statusDiv.appendChild(p);
+            } else {
+                statusDiv.className = 'box error';
+                while (statusDiv.firstChild) {
+                    statusDiv.removeChild(statusDiv.firstChild);
+                }
+                const h3 = document.createElement('h3');
+                h3.textContent = '✗ Wallet NOT Detected';
+                statusDiv.appendChild(h3);
+                const p = document.createElement('p');
+                p.textContent = 'window.ethereum is not available. Extension may not be loaded.';
+                statusDiv.appendChild(p);
+                log('\nPossible issues:');
+                log('1. Extension not installed or disabled');
+                log('2. Content script not injected');
+                log('3. Page needs to be refreshed');
+            }
+        }
+
+        async function requestAccounts() {
+            document.getElementById('output').textContent = '';
+            log('=== Requesting Accounts ===');
+            
+            if (!window.ethereum) {
+                log('ERROR: window.ethereum not found!');
+                return;
+            }
+            
+            try {
+                const accounts = await window.ethereum.request({ method: 'eth_requestAccounts' });
+                log('Success! Accounts: ' + JSON.stringify(accounts, null, 2));
+            } catch (error) {
+                log('ERROR: ' + error.message);
+            }
+        }
+
+        async function getChainId() {
+            document.getElementById('output').textContent = '';
+            log('=== Getting Chain ID ===');
+            
+            if (!window.ethereum) {
+                log('ERROR: window.ethereum not found!');
+                return;
+            }
+            
+            try {
+                const chainId = await window.ethereum.request({ method: 'eth_chainId' });
+                log('Chain ID: ' + chainId);
+            } catch (error) {
+                log('ERROR: ' + error.message);
+            }
+        }
+
+        // Auto-check on load
+        window.addEventListener('load', () => {
+            setTimeout(checkWallet, 500);
+        });
+
+        // Listen for ethereum initialization
+        window.addEventListener('ethereum#initialized', () => {
+            log('✓ ethereum#initialized event received');
+            checkWallet();
+        });
+    </script>
+</body>
+</html>

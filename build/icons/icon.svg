@@ -1,0 +1,5 @@
+<!-- Placeholder icon - Replace with actual PNG icons -->
+<svg width="128" height="128" xmlns="http://www.w3.org/2000/svg">
+  <rect width="128" height="128" fill="#1e293b" rx="24"/>
+  <text x="50%" y="50%" text-anchor="middle" dy=".3em" font-size="64">🧩</text>
+</svg>
