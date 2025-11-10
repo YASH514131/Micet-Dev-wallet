@@ -12,6 +12,9 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ wallet, onClearWalle
   const [showKeys, setShowKeys] = useState(false);
   const [encryptPassword, setEncryptPassword] = useState('');
   const [showEncrypt, setShowEncrypt] = useState(false);
+  const [customRpcUrl, setCustomRpcUrl] = useState('');
+  const [showCustomRpc, setShowCustomRpc] = useState(false);
+  const [selectedNetwork, setSelectedNetwork] = useState('sepolia');
 
   // console.log('SettingsView rendered', { wallet, showKeys });
 
@@ -99,6 +102,30 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ wallet, onClearWalle
   const copyToClipboard = (text: string, label: string) => {
     navigator.clipboard.writeText(text);
     alert(`${label} copied to clipboard!`);
+  };
+
+  const handleSetCustomRpc = async () => {
+    if (!customRpcUrl.trim()) {
+      alert('Please enter a valid RPC URL');
+      return;
+    }
+    try {
+      await (await import('../../utils/storage')).setCustomRpcUrl(selectedNetwork, customRpcUrl);
+      alert(`✓ Custom RPC saved for ${selectedNetwork}`);
+      setCustomRpcUrl('');
+      setShowCustomRpc(false);
+    } catch (error: any) {
+      alert(`Failed to save custom RPC: ${error.message}`);
+    }
+  };
+
+  const handleClearCustomRpc = async () => {
+    try {
+      await (await import('../../utils/storage')).clearCustomRpcUrl(selectedNetwork);
+      alert(`✓ Custom RPC cleared for ${selectedNetwork}`);
+    } catch (error: any) {
+      alert(`Failed to clear custom RPC: ${error.message}`);
+    }
   };
 
   if (!wallet) {
@@ -278,6 +305,81 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ wallet, onClearWalle
                 Cancel
               </button>
             </div>
+          </div>
+        )}
+      </div>
+
+      {/* Danger Zone */}
+      <div className="bg-slate-800 rounded-xl p-6 mb-6 border border-blue-900/50">
+        <h3 className="text-lg font-semibold text-blue-400 mb-4">Custom RPC (Advanced)</h3>
+        
+        <p className="text-sm text-slate-400 mb-4">
+          If balance fetching is timing out, provide your own RPC endpoint. Get a free endpoint from:
+        </p>
+        <ul className="text-xs text-slate-400 list-disc list-inside mb-4 space-y-1">
+          <li><strong>Infura</strong>: <code className="bg-slate-900 px-1">https://sepolia.infura.io/v3/YOUR_API_KEY</code></li>
+          <li><strong>Alchemy</strong>: <code className="bg-slate-900 px-1">https://eth-sepolia.g.alchemy.com/v2/YOUR_API_KEY</code></li>
+          <li><strong>QuickNode</strong>: <code className="bg-slate-900 px-1">https://YOUR_ENDPOINT.quiknode.pro/</code></li>
+          <li><strong>BlockPI</strong>: Free at <code className="bg-slate-900 px-1">https://rpc.sepolia.blockpi.network/v1/rpc/public</code></li>
+        </ul>
+
+        {!showCustomRpc ? (
+          <button
+            onClick={() => setShowCustomRpc(true)}
+            className="w-full py-3 px-4 bg-blue-600 hover:bg-blue-700 text-white font-semibold rounded-xl transition-all"
+          >
+            Set Custom RPC
+          </button>
+        ) : (
+          <div className="space-y-4">
+            <div>
+              <label className="block text-sm font-semibold text-slate-300 mb-2">
+                Select Network
+              </label>
+              <select
+                value={selectedNetwork}
+                onChange={(e) => setSelectedNetwork(e.target.value)}
+                className="w-full px-4 py-3 bg-slate-900 border border-slate-700 rounded-xl text-slate-100 focus:outline-none focus:ring-2 focus:ring-blue-500"
+              >
+                <option value="sepolia">Ethereum Sepolia</option>
+                <option value="polygonAmoy">Polygon Amoy</option>
+                <option value="bscTestnet">BSC Testnet</option>
+                <option value="fuji">Avalanche Fuji</option>
+                <option value="hardhat">Local Hardhat</option>
+              </select>
+            </div>
+            <div>
+              <label className="block text-sm font-semibold text-slate-300 mb-2">
+                RPC URL
+              </label>
+              <input
+                type="text"
+                value={customRpcUrl}
+                onChange={(e) => setCustomRpcUrl(e.target.value)}
+                placeholder="https://..."
+                className="w-full px-4 py-3 bg-slate-900 border border-slate-700 rounded-xl text-slate-100 placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-500"
+              />
+            </div>
+            <div className="flex gap-2">
+              <button
+                onClick={handleSetCustomRpc}
+                className="flex-1 py-3 px-4 bg-green-600 hover:bg-green-700 text-white font-semibold rounded-xl transition-all"
+              >
+                Save
+              </button>
+              <button
+                onClick={() => setShowCustomRpc(false)}
+                className="flex-1 py-3 px-4 bg-slate-700 hover:bg-slate-600 text-slate-300 font-semibold rounded-xl transition-all"
+              >
+                Cancel
+              </button>
+            </div>
+            <button
+              onClick={handleClearCustomRpc}
+              className="w-full py-3 px-4 bg-red-600/20 hover:bg-red-600/30 text-red-400 font-semibold rounded-xl transition-all border border-red-600/50"
+            >
+              Clear Custom RPC
+            </button>
           </div>
         )}
       </div>

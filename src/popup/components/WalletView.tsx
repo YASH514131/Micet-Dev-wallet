@@ -4,6 +4,7 @@ import { NETWORKS } from '../../utils/network';
 import { getBalance as getEvmBalance } from '../../utils/evm';
 import { getBalance as getSolanaBalance, requestAirdrop } from '../../utils/solana';
 import { handleFaucetRequest, getFaucetButtonText } from '../../utils/faucet';
+import { getCustomRpcUrl } from '../../utils/storage';
 
 interface WalletViewProps {
   wallet: WalletState;
@@ -20,58 +21,73 @@ export const WalletView: React.FC<WalletViewProps> = ({ wallet, onNetworkChange 
   const isEvm = currentNetwork?.type === 'EVM';
   const currentAddress = isEvm ? wallet.evmAddress : wallet.solanaPublicKey;
 
+  // Auto-refresh balance every 10 seconds and on network change
   useEffect(() => {
-  // console.log('=== WALLET VIEW EFFECT ===');
-  // console.log('Selected network:', wallet.selectedNetwork);
-  // console.log('Network config:', currentNetwork);
-  // console.log('Network type:', currentNetwork?.type);
-  // console.log('Is EVM:', isEvm);
-  // console.log('Current address:', currentAddress);
-  // console.log('========================');
-    
+    // Initial fetch
     setBalance('0'); // Reset balance
     setError(null); // Reset error
     fetchBalance();
+    
+    // Auto-refresh every 10 seconds
+    const autoRefreshInterval = setInterval(() => {
+      console.log('🔄 Auto-refreshing balance for', wallet.selectedNetwork);
+      fetchBalance();
+    }, 10000); // 10 seconds
+    
+    return () => clearInterval(autoRefreshInterval);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [wallet.selectedNetwork, currentAddress]);
 
   const fetchBalance = async () => {
     if (!currentNetwork) {
-      // console.warn('No network selected');
+      console.warn('⚠️  No network selected');
       setError('No network selected');
       return;
     }
     
-  // console.log('=== FETCHING BALANCE ===');
-  // console.log('Network:', currentNetwork.name);
-  // console.log('Type:', currentNetwork.type);
-  // console.log('RPC URL:', currentNetwork.rpcUrl);
+    console.log('📊 Fetching balance from', currentNetwork.name, '- RPC:', currentNetwork.rpcUrl);
     
     setLoading(true);
     setError(null);
     
     try {
-      if (isEvm) {
-  // console.log('>>> Fetching EVM balance for:', wallet.evmAddress);
-        const bal = await getEvmBalance(wallet.evmAddress, currentNetwork.rpcUrl);
-  // console.log('>>> EVM Balance result:', bal);
-        setBalance(bal || '0');
+      // Check for custom RPC URL for THIS network
+      const customRpc = await getCustomRpcUrl(wallet.selectedNetwork);
+      const rpcToUse = customRpc || (currentNetwork.rpcUrls ?? currentNetwork.rpcUrl);
+      
+      if (customRpc) {
+        console.log('🔗 Using custom RPC for', wallet.selectedNetwork, ':', customRpc);
       } else {
-  // console.log('>>> Fetching Solana balance for:', wallet.solanaPublicKey);
-        const bal = await getSolanaBalance(wallet.solanaPublicKey, currentNetwork.rpcUrl);
-  // console.log('>>> Solana Balance result:', bal);
-  // console.log('>>> Balance type:', typeof bal);
-  // console.log('>>> Setting balance state to:', bal);
-        setBalance(bal || '0');
-        
-        // Force a small delay to ensure state update
-        await new Promise(resolve => setTimeout(resolve, 100));
-  // console.log('>>> Balance state after update should be:', bal);
+        console.log('📍 Using default RPC endpoints for', wallet.selectedNetwork);
       }
-      // console.log('=== BALANCE FETCH COMPLETE ===');
+      
+      // Set a timeout for the entire balance fetch operation
+      const timeoutMs = 12000; // 12 seconds total timeout
+      
+        const balancePromise = isEvm
+          ? getEvmBalance(wallet.evmAddress, rpcToUse)
+        : getSolanaBalance(wallet.solanaPublicKey, currentNetwork.rpcUrl);
+      
+      // Create timeout promise
+      const timeoutPromise = new Promise<never>((_, reject) =>
+        setTimeout(() => reject(new Error('Balance fetch timeout - RPC endpoint not responding')), timeoutMs)
+      );
+      
+      const bal = await Promise.race([balancePromise, timeoutPromise]);
+      console.log('✅ Balance received:', bal);
+      setBalance(bal || '0');
     } catch (error: any) {
-      // console.error('!!! Failed to fetch balance:', error);
-      setError(error.message || 'Failed to fetch balance');
+      console.error('❌ Failed to fetch balance:', error.message);
+      
+      // Provide helpful error messages
+      if (error.message?.includes('timeout')) {
+        setError('⏱️ RPC endpoint timeout - try refreshing or switching networks');
+      } else if (error.message?.includes('Mainnet not allowed')) {
+        setError('❌ Mainnet access blocked - use testnets only');
+      } else {
+        setError(error.message || 'Failed to fetch balance');
+      }
+      
       setBalance('0');
     } finally {
       setLoading(false);

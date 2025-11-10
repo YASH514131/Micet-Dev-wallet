@@ -217,3 +217,46 @@ export async function getSettings(): Promise<Record<string, any>> {
     return {};
   }
 }
+
+/**
+ * Store custom RPC URL for a network
+ */
+export async function setCustomRpcUrl(networkId: string, rpcUrl: string): Promise<void> {
+  try {
+    const settings = await getSettings();
+    if (!settings.customRpcUrls) {
+      settings.customRpcUrls = {};
+    }
+    settings.customRpcUrls[networkId] = rpcUrl;
+    await storeSettings(settings);
+  } catch (_error) {
+    throw new Error('Failed to store custom RPC URL');
+  }
+}
+
+/**
+ * Get custom RPC URL for a network
+ */
+export async function getCustomRpcUrl(networkId: string): Promise<string | null> {
+  try {
+    const settings = await getSettings();
+    return settings.customRpcUrls?.[networkId] || null;
+  } catch (_error) {
+    return null;
+  }
+}
+
+/**
+ * Clear custom RPC URL for a network
+ */
+export async function clearCustomRpcUrl(networkId: string): Promise<void> {
+  try {
+    const settings = await getSettings();
+    if (settings.customRpcUrls) {
+      delete settings.customRpcUrls[networkId];
+      await storeSettings(settings);
+    }
+  } catch (_error) {
+    throw new Error('Failed to clear custom RPC URL');
+  }
+}

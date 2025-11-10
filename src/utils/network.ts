@@ -4,6 +4,8 @@ export interface NetworkConfig {
   chainId?: number;
   clusterId?: string;
   rpcUrl: string;
+  // Optional list of RPC endpoints to try (fallbacks). First entry kept in rpcUrl for compatibility.
+  rpcUrls?: string[];
   explorerUrl: string;
   faucetUrl?: string;
   symbol: string;
@@ -15,7 +17,17 @@ export const NETWORKS: Record<string, NetworkConfig> = {
     name: 'Ethereum Sepolia',
     type: 'EVM',
     chainId: 11155111,
-    rpcUrl: 'https://eth-sepolia.public.blastapi.io',
+    // Primary RPC URL: Alchemy's free public endpoint (no API key required, reliable)
+    // Note: If you still get timeout errors, you can:
+    //   - Get a FREE API key from Alchemy.com and use: https://eth-sepolia.g.alchemy.com/v2/YOUR_API_KEY
+    //   - Or paste any custom RPC URL in Wallet Settings → Custom RPC URL
+    rpcUrl: 'https://eth-sepolia.g.alchemy.com/v2/demo',
+    rpcUrls: [
+      'https://eth-sepolia.g.alchemy.com/v2/demo',
+      'https://rpc.ankr.com/eth_sepolia',
+      'https://rpc.sepolia.publicnode.com',
+      'https://rpc.sepolia.org'
+    ],
     explorerUrl: 'https://sepolia.etherscan.io',
     faucetUrl: 'https://sepoliafaucet.com',
     symbol: 'ETH',
