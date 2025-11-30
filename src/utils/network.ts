@@ -98,6 +98,66 @@ export function isMainnetBlocked(chainId?: number, cluster?: string): boolean {
   return false;
 }
 
+/**
+ * Get chainId hex string from network name
+ * Used for eth_chainId RPC response
+ */
+export function getChainIdHex(networkName: string): string {
+  const network = NETWORKS[networkName];
+  if (!network || !network.chainId) {
+    return '0xaa36a7'; // Default to Sepolia
+  }
+  return '0x' + network.chainId.toString(16);
+}
+
+/**
+ * Get chain ID in decimal from network name
+ * Used for net_version RPC response
+ */
+export function getChainIdDecimal(networkName: string): string {
+  const network = NETWORKS[networkName];
+  if (!network || !network.chainId) {
+    return '11155111'; // Default to Sepolia
+  }
+  return network.chainId.toString();
+}
+
+/**
+ * Get RPC URL for a network (checks for custom RPC first, then default)
+ */
+export async function getRpcUrl(networkName: string): Promise<string> {
+  try {
+    // Try to get custom RPC URL if set
+    const customRpc = await (await import('./storage')).getCustomRpcUrl(networkName);
+    if (customRpc) {
+      console.log(`📡 Using custom RPC for ${networkName}: ${customRpc}`);
+      return customRpc;
+    }
+  } catch (_e) {
+    // Ignore errors reading custom RPC
+  }
+  
+  const network = NETWORKS[networkName];
+  if (!network) {
+    return NETWORKS['sepolia'].rpcUrl; // Default to Sepolia
+  }
+  console.log(`📡 Using default RPC for ${networkName}: ${network.rpcUrl}`);
+  return network.rpcUrl;
+}
+
+/**
+ * Get network name from chainId hex
+ */
+export function getNetworkFromChainId(chainIdHex: string): string {
+  const chainId = parseInt(chainIdHex, 16);
+  for (const [name, config] of Object.entries(NETWORKS)) {
+    if (config.chainId === chainId) {
+      return name;
+    }
+  }
+  return 'sepolia'; // Default
+}
+
 export function getNetworkById(id: string): NetworkConfig | undefined {
   return NETWORKS[id];
 }

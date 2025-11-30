@@ -128,6 +128,50 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ wallet, onClearWalle
     }
   };
 
+  const [connectedSites, setConnectedSites] = React.useState<any>({});
+
+  // Load connected sites on mount
+  React.useEffect(() => {
+    const browser = typeof window !== 'undefined' && (window as any).browser ? (window as any).browser : chrome;
+    browser.storage.local.get('connectedSites').then((result: any) => {
+      setConnectedSites(result.connectedSites || {});
+    });
+  }, []);
+
+  const handleDisconnectSite = async (origin: string) => {
+    const confirmed = confirm(`Disconnect from ${origin}?\n\nYou'll need to approve connection again next time.`);
+    if (!confirmed) return;
+
+    try {
+      const browser = typeof window !== 'undefined' && (window as any).browser ? (window as any).browser : chrome;
+      const result = await browser.storage.local.get('connectedSites');
+      const sites = result.connectedSites || {};
+      
+      delete sites[origin];
+      await browser.storage.local.set({ connectedSites: sites });
+      
+      setConnectedSites(sites);
+      alert(`✓ Disconnected from ${origin}`);
+    } catch (error: any) {
+      alert(`Failed to disconnect: ${error.message}`);
+    }
+  };
+
+  const handleDisconnectAll = async () => {
+    const confirmed = confirm('Disconnect from ALL sites?\n\nYou\'ll need to approve connection again for each site.');
+    if (!confirmed) return;
+
+    try {
+      const browser = typeof window !== 'undefined' && (window as any).browser ? (window as any).browser : chrome;
+      await browser.storage.local.set({ connectedSites: {} });
+      
+      setConnectedSites({});
+      alert('✓ Disconnected from all sites');
+    } catch (error: any) {
+      alert(`Failed to disconnect: ${error.message}`);
+    }
+  };
+
   if (!wallet) {
     return <div className="p-6 text-slate-100">Loading wallet...</div>;
   }
@@ -323,6 +367,11 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ wallet, onClearWalle
           <li><strong>BlockPI</strong>: Free at <code className="bg-slate-900 px-1">https://rpc.sepolia.blockpi.network/v1/rpc/public</code></li>
         </ul>
 
+        <div className="bg-slate-900 rounded-lg p-3 mb-4 border border-slate-700">
+          <p className="text-xs font-semibold text-slate-300 mb-2">📍 Tip: Custom RPC helps if default endpoints are slow or blocked</p>
+          <p className="text-xs text-slate-400">When you set a custom RPC for a network, it will be used for all balance and transaction requests.</p>
+        </div>
+
         {!showCustomRpc ? (
           <button
             onClick={() => setShowCustomRpc(true)}
@@ -384,6 +433,45 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ wallet, onClearWalle
         )}
       </div>
 
+      {/* Connected Sites */}
+      <div className="bg-slate-800 rounded-xl p-6 mb-6">
+        <h3 className="text-lg font-semibold text-slate-100 mb-4">Connected Sites</h3>
+        
+        {Object.keys(connectedSites).length === 0 ? (
+          <p className="text-sm text-slate-400">No connected sites yet. When you connect to a dapp, it will appear here.</p>
+        ) : (
+          <div className="space-y-3">
+            {Object.keys(connectedSites).map((origin) => (
+              <div key={origin} className="flex items-center justify-between bg-slate-900 rounded-lg p-3 border border-slate-700">
+                <div className="flex items-center gap-3 flex-1 min-w-0">
+                  <div className="text-lg">🌐</div>
+                  <div className="min-w-0">
+                    <p className="text-sm font-semibold text-slate-100 truncate">{origin}</p>
+                    <p className="text-xs text-slate-400">
+                      Connected {new Date(connectedSites[origin].connectedAt).toLocaleDateString()}
+                    </p>
+                  </div>
+                </div>
+                <button
+                  onClick={() => handleDisconnectSite(origin)}
+                  className="ml-2 px-3 py-1 bg-red-600/20 hover:bg-red-600/30 text-red-400 text-sm font-semibold rounded transition-colors border border-red-600/50"
+                >
+                  Disconnect
+                </button>
+              </div>
+            ))}
+            {Object.keys(connectedSites).length > 0 && (
+              <button
+                onClick={handleDisconnectAll}
+                className="w-full py-2 px-4 bg-red-600/20 hover:bg-red-600/30 text-red-400 text-sm font-semibold rounded-lg transition-all border border-red-600/50 mt-3"
+              >
+                Disconnect From All Sites
+              </button>
+            )}
+          </div>
+        )}
+      </div>
+
       {/* Danger Zone */}
       <div className="bg-slate-800 rounded-xl p-6 border-2 border-red-900/50">
         <h3 className="text-lg font-semibold text-red-400 mb-4">Danger Zone</h3>
@@ -408,3 +496,5 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ wallet, onClearWalle
     </div>
   );
 };
+
+

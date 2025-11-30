@@ -160,7 +160,7 @@ async function handleRequestAccounts(sender: chrome.runtime.MessageSender, sendR
   try {
     // Check both session storage and walletState
   const SESSION_KEY = 'devnet_wallet_session';
-    const result = await chrome.storage.local.get([SESSION_KEY, 'walletState']);
+    const result = await chrome.storage.local.get([SESSION_KEY, 'walletState', 'connectedSites']);
     
     let evmAddress = null;
     
@@ -191,6 +191,18 @@ async function handleRequestAccounts(sender: chrome.runtime.MessageSender, sendR
       return;
     }
     
+    // Check if this site is already connected
+    const connectedSites = result.connectedSites || {};
+    if (connectedSites[origin]) {
+      // Site is already approved - return accounts immediately
+      console.log('✅ Site already connected:', origin);
+      sendResponse({
+        success: true,
+        accounts: [evmAddress],
+      });
+      return;
+    }
+    
     // Store the pending request
     pendingRequests.set(tabId, sendResponse);
     
@@ -209,10 +221,32 @@ async function handleRequestAccounts(sender: chrome.runtime.MessageSender, sendR
 }
 
 // Handle connection approval
-function handleApproveConnection(tabId: number, accounts: string[]) {
+async function handleApproveConnection(tabId: number, accounts: string[]) {
   const sendResponse = pendingRequests.get(tabId);
   if (sendResponse) {
     // console.log('✅ Connection approved for tab:', tabId);
+    
+    try {
+      // Get the origin from the tab
+      const tab = await chrome.tabs.get(tabId);
+      if (tab.url) {
+        const origin = new URL(tab.url).origin;
+        
+        // Store this site as connected
+        const result = await chrome.storage.local.get('connectedSites');
+        const connectedSites = result.connectedSites || {};
+        connectedSites[origin] = {
+          connectedAt: Date.now(),
+          accounts: accounts,
+        };
+        
+        await chrome.storage.local.set({ connectedSites });
+        console.log('💾 Site connection saved:', origin);
+      }
+    } catch (error) {
+      console.warn('⚠️ Failed to save site connection:', error);
+    }
+    
     sendResponse({
       success: true,
       accounts,
@@ -222,10 +256,29 @@ function handleApproveConnection(tabId: number, accounts: string[]) {
 }
 
 // Handle connection rejection
-function handleRejectConnection(tabId: number) {
+async function handleRejectConnection(tabId: number) {
   const sendResponse = pendingRequests.get(tabId);
   if (sendResponse) {
     // console.log('❌ Connection rejected for tab:', tabId);
+    
+    try {
+      // Remove this site from connected list if it exists
+      const tab = await chrome.tabs.get(tabId);
+      if (tab.url) {
+        const origin = new URL(tab.url).origin;
+        const result = await chrome.storage.local.get('connectedSites');
+        const connectedSites = result.connectedSites || {};
+        
+        if (connectedSites[origin]) {
+          delete connectedSites[origin];
+          await chrome.storage.local.set({ connectedSites });
+          console.log('🗑️ Site connection removed:', origin);
+        }
+      }
+    } catch (error) {
+      console.warn('⚠️ Failed to update site connection:', error);
+    }
+    
     sendResponse({
       success: false,
       error: 'User rejected the connection request.',

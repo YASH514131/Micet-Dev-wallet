@@ -16,10 +16,28 @@ export const WalletView: React.FC<WalletViewProps> = ({ wallet, onNetworkChange 
   const [loading, setLoading] = useState(false);
   const [copiedAddress, setCopiedAddress] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [isUsingCustomRpc, setIsUsingCustomRpc] = useState(false);
+  const [currentRpcUrl, setCurrentRpcUrl] = useState<string>('');
   
   const currentNetwork = NETWORKS[wallet.selectedNetwork];
   const isEvm = currentNetwork?.type === 'EVM';
   const currentAddress = isEvm ? wallet.evmAddress : wallet.solanaPublicKey;
+
+  // Check if custom RPC is being used
+  useEffect(() => {
+    const checkCustomRpc = async () => {
+      const customRpc = await getCustomRpcUrl(wallet.selectedNetwork);
+      if (customRpc) {
+        setIsUsingCustomRpc(true);
+        setCurrentRpcUrl(customRpc);
+      } else {
+        setIsUsingCustomRpc(false);
+        setCurrentRpcUrl(currentNetwork?.rpcUrl || '');
+      }
+    };
+    
+    checkCustomRpc();
+  }, [wallet.selectedNetwork, currentNetwork?.rpcUrl]);
 
   // Auto-refresh balance every 10 seconds and on network change
   useEffect(() => {
@@ -150,7 +168,16 @@ export const WalletView: React.FC<WalletViewProps> = ({ wallet, onNetworkChange 
       {/* Balance Card */}
       <div className="bg-gradient-to-br from-slate-800 to-slate-900 rounded-2xl p-6 shadow-xl mb-6">
         <div className="text-center">
-          <p className="text-slate-400 text-sm mb-2">Total Balance</p>
+          <div className="flex items-center justify-center gap-2 mb-2">
+            <p className="text-slate-400 text-sm">Total Balance</p>
+            <span className={`text-xs px-2 py-1 rounded-full font-semibold ${
+              isUsingCustomRpc 
+                ? 'bg-purple-900/50 text-purple-300 border border-purple-700' 
+                : 'bg-blue-900/50 text-blue-300 border border-blue-700'
+            }`}>
+              {isUsingCustomRpc ? '⚙️ Custom RPC' : '📍 Default RPC'}
+            </span>
+          </div>
           <div className="flex items-center justify-center gap-2">
             <p className="text-4xl font-bold text-slate-100">
               {loading ? '...' : (balance && !isNaN(parseFloat(balance)) ? parseFloat(balance).toFixed(4) : '0.0000')}
@@ -237,11 +264,20 @@ export const WalletView: React.FC<WalletViewProps> = ({ wallet, onNetworkChange 
               {currentNetwork?.chainId || currentNetwork?.clusterId}
             </span>
           </div>
-          <div className="flex justify-between">
-            <span className="text-slate-400">RPC URL:</span>
-            <span className="text-slate-200 font-mono truncate max-w-[200px]" title={currentNetwork?.rpcUrl}>
-              {currentNetwork?.rpcUrl}
-            </span>
+          <div className="flex justify-between items-start gap-2">
+            <span className="text-slate-400">Current RPC:</span>
+            <div className="flex flex-col items-end gap-1">
+              <span className="text-slate-200 font-mono truncate max-w-[200px] text-right" title={currentRpcUrl}>
+                {currentRpcUrl}
+              </span>
+              <span className={`text-xs px-2 py-1 rounded-full font-semibold ${
+                isUsingCustomRpc 
+                  ? 'bg-purple-900/50 text-purple-300 border border-purple-700' 
+                  : 'bg-blue-900/50 text-blue-300 border border-blue-700'
+              }`}>
+                {isUsingCustomRpc ? '⚙️ Custom' : '📍 Default'}
+              </span>
+            </div>
           </div>
         </div>
       </div>

@@ -162,16 +162,70 @@
     }
   });
   
-  // Helper function to forward RPC calls to public Sepolia endpoint
+  // Network configuration mapping
+  const NETWORK_CONFIG = {
+    sepolia: {
+      chainId: 11155111,
+      chainIdHex: '0xaa36a7',
+      rpcUrls: [
+        'https://eth-sepolia.g.alchemy.com/v2/demo',
+        'https://rpc.ankr.com/eth_sepolia',
+        'https://rpc.sepolia.publicnode.com',
+        'https://rpc.sepolia.org',
+        'https://sepolia.gateway.tenderly.co',
+        'https://ethereum-sepolia.publicnode.com',
+        'https://sepolia.infura.io/v3/9aa3d95b3bc440fa88ea12eaa4456161',
+      ]
+    },
+    polygonAmoy: {
+      chainId: 80002,
+      chainIdHex: '0x13882',
+      rpcUrls: ['https://rpc-amoy.polygon.technology']
+    },
+    bscTestnet: {
+      chainId: 97,
+      chainIdHex: '0x61',
+      rpcUrls: ['https://data-seed-prebsc-1-s1.binance.org:8545']
+    },
+    fuji: {
+      chainId: 43113,
+      chainIdHex: '0xa869',
+      rpcUrls: ['https://api.avax-test.network/ext/bc/C/rpc']
+    },
+    hardhat: {
+      chainId: 31337,
+      chainIdHex: '0x7a69',
+      rpcUrls: ['http://127.0.0.1:8545']
+    }
+  };
+
+  // Get stored network and RPC info
+  let currentNetworkName = 'sepolia'; // Default
+  let currentRpcUrls = NETWORK_CONFIG.sepolia.rpcUrls;
+  let isCustomRpc = false;
+
+  // Helper function to forward RPC calls to configured network endpoint
   async function forwardToRPC(method, params) {
     // Try multiple RPC endpoints for better reliability
     validateRpcParams(method, params);
-    const RPC_URLS = [
-      'https://sepolia.gateway.tenderly.co',
-      'https://ethereum-sepolia.publicnode.com',
-      'https://rpc.sepolia.org',
-      'https://sepolia.infura.io/v3/9aa3d95b3bc440fa88ea12eaa4456161', // Public Infura key
-    ];
+    
+    // Get current network state (this may have custom RPC set)
+    try {
+      const stateResponse = await sendMessage('GET_WALLET_STATE');
+      if (stateResponse.data?.selectedNetwork) {
+        currentNetworkName = stateResponse.data.selectedNetwork;
+        
+        // Update RPC URLs based on current network
+        if (NETWORK_CONFIG[currentNetworkName]) {
+          currentRpcUrls = NETWORK_CONFIG[currentNetworkName].rpcUrls;
+        }
+      }
+    } catch (_e) {
+      // Use default
+      console.warn('⚠️ Could not get wallet state, using default Sepolia');
+    }
+
+    const RPC_URLS = currentRpcUrls || NETWORK_CONFIG.sepolia.rpcUrls;
 
     const fetchWithTimeout = async (url, body, timeoutMs = 8000) => {
       const controller = new AbortController();
@@ -199,6 +253,7 @@
     
     for (const RPC_URL of RPC_URLS) {
       try {
+        console.log(`📡 Trying RPC: ${RPC_URL}`);
         const response = await fetchWithTimeout(RPC_URL, requestBody);
         
         if (!response.ok) {
@@ -226,7 +281,7 @@
     
     // All endpoints failed
     console.error('🔴 All RPC endpoints failed for method:', method);
-    throw new Error('Failed to connect to Sepolia network. Please check your internet connection.');
+    throw new Error(`Failed to connect to ${currentNetworkName} network. Please check your internet connection or custom RPC settings.`);
   }
   
   // EVM Wallet API (similar to window.ethereum)
@@ -274,11 +329,30 @@
           }
           
         case 'eth_chainId':
-          const stateResponse = await sendMessage('GET_WALLET_STATE');
-          return stateResponse.data?.selectedNetwork || '0xaa36a7'; // Sepolia chainId
+          try {
+            const stateResponse = await sendMessage('GET_WALLET_STATE');
+            const networkName = stateResponse.data?.selectedNetwork || 'sepolia';
+            const networkConfig = NETWORK_CONFIG[networkName];
+            const chainIdHex = networkConfig?.chainIdHex || '0xaa36a7';
+            console.log(`🔗 eth_chainId for ${networkName}: ${chainIdHex}`);
+            return chainIdHex;
+          } catch (error) {
+            console.warn('⚠️ Failed to get chainId, using default Sepolia');
+            return '0xaa36a7'; // Default to Sepolia
+          }
           
         case 'net_version':
-          return '11155111'; // Sepolia network ID (decimal)
+          try {
+            const stateResponse = await sendMessage('GET_WALLET_STATE');
+            const networkName = stateResponse.data?.selectedNetwork || 'sepolia';
+            const networkConfig = NETWORK_CONFIG[networkName];
+            const chainId = networkConfig?.chainId || 11155111;
+            console.log(`🔗 net_version for ${networkName}: ${chainId}`);
+            return chainId.toString();
+          } catch (error) {
+            console.warn('⚠️ Failed to get net_version, using default Sepolia');
+            return '11155111'; // Default to Sepolia
+          }
           
         case 'eth_getBalance':
         case 'eth_blockNumber':

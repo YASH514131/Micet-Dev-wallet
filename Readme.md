@@ -87,11 +87,29 @@ This project is intended strictly for **development and testing purposes only**.
 
 ---
 
+## RPC Endpoint Configuration
+
+The wallet uses public RPC endpoints for blockchain interaction. By default, it uses a free public Alchemy endpoint.
+
+**For production or reliable testing:**
+1. Create a free account on [Alchemy](https://www.alchemy.com/), [Infura](https://www.infura.io/), or [QuickNode](https://www.quicknode.com/)
+2. Create a Sepolia testnet endpoint and copy your API key/URL
+3. Open the wallet Settings and paste your RPC URL in the "Custom RPC URL" field
+4. Save and refresh
+
+**Why this matters:**
+- Free public endpoints are rate-limited and unreliable
+- Using an authenticated endpoint ensures stable balance fetching and transaction broadcasting
+- See `RPC_ENDPOINT_GUIDE.md` for detailed setup instructions
+
+---
+
 ## Troubleshooting
 
 * If the build fails, ensure correct Node.js and npm versions are installed.
 * Verify that all referenced files in `manifest.json` (e.g., icons, HTML, JS) exist in the `build/` directory.
 * Run `npm run clean` (if available) before rebuilding to ensure a clean state.
+* **Balance not loading or timeout errors?** Set up a custom RPC endpoint with an API key (see RPC Endpoint Configuration above)
 
 ---
 
