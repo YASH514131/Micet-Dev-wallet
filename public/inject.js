@@ -199,33 +199,55 @@
     }
   };
 
-  // Get stored network and RPC info
+  // Get stored network and RPC info - cached to reduce overhead
   let currentNetworkName = 'sepolia'; // Default
   let currentRpcUrls = NETWORK_CONFIG.sepolia.rpcUrls;
-  let isCustomRpc = false;
+  let currentCustomRpcUrl = null;
+  let networkStateCacheTime = 0;
+  const NETWORK_CACHE_MS = 60000; // Cache for 60 seconds
 
-  // Helper function to forward RPC calls to configured network endpoint
-  async function forwardToRPC(method, params) {
-    // Try multiple RPC endpoints for better reliability
-    validateRpcParams(method, params);
+  // Refresh network state from background (cached)
+  async function refreshNetworkState() {
+    const now = Date.now();
+    if (now - networkStateCacheTime < NETWORK_CACHE_MS) {
+      return; // Use cached values
+    }
     
-    // Get current network state (this may have custom RPC set)
     try {
       const stateResponse = await sendMessage('GET_WALLET_STATE');
-      if (stateResponse.data?.selectedNetwork) {
-        currentNetworkName = stateResponse.data.selectedNetwork;
+      if (stateResponse.data) {
+        currentNetworkName = stateResponse.data.selectedNetwork || 'sepolia';
+        currentCustomRpcUrl = stateResponse.data.customRpcUrl || null;
         
-        // Update RPC URLs based on current network
         if (NETWORK_CONFIG[currentNetworkName]) {
           currentRpcUrls = NETWORK_CONFIG[currentNetworkName].rpcUrls;
         }
+        
+        if (currentCustomRpcUrl) {
+          console.log('📡 Custom RPC configured:', currentCustomRpcUrl);
+        }
       }
+      networkStateCacheTime = now;
     } catch (_e) {
-      // Use default
-      console.warn('⚠️ Could not get wallet state, using default Sepolia');
+      console.warn('⚠️ Could not get wallet state, using cached/default');
     }
+  }
 
-    const RPC_URLS = currentRpcUrls || NETWORK_CONFIG.sepolia.rpcUrls;
+  // Helper function to forward RPC calls to configured network endpoint
+  async function forwardToRPC(method, params) {
+    // Validate params
+    validateRpcParams(method, params);
+    
+    // Refresh network state (uses cache)
+    await refreshNetworkState();
+
+    // Build RPC list - custom RPC first if set
+    let RPC_URLS;
+    if (currentCustomRpcUrl) {
+      RPC_URLS = [currentCustomRpcUrl, ...currentRpcUrls];
+    } else {
+      RPC_URLS = currentRpcUrls || NETWORK_CONFIG.sepolia.rpcUrls;
+    }
 
     const fetchWithTimeout = async (url, body, timeoutMs = 8000) => {
       const controller = new AbortController();

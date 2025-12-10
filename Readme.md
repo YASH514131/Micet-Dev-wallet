@@ -1,6 +1,17 @@
 
 
-# DevNet Wallet – Source Code Build Instructions
+# DevNet Wallet – Browser Extension for Blockchain Development
+
+## 🆕 What's New in v1.0.3
+
+✨ **Fixed Remix IDE Integration** - Network detection now works properly  
+🔗 **No More Repeated Popups** - Sites stay connected without re-approving  
+🔑 **Custom RPC Support** - Add your own Alchemy endpoints  
+📊 **Connected Sites Management** - See and disconnect from all DApps anytime  
+
+[See Full Changelog](./CHANGELOG.md)
+
+---
 
 ## Overview
 DevNet Wallet is a browser extension for safe blockchain development and testing. It supports EVM and Solana test networks only.

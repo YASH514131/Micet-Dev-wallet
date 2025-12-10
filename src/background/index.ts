@@ -81,12 +81,17 @@ browser.runtime.onMessage.addListener((request: any, sender: any, sendResponse: 
 // Handle getting wallet state
 async function handleGetWalletState(sendResponse: (response: any) => void) {
   try {
-    const result = await chrome.storage.local.get(['walletState', 'selectedNetwork']);
+    const result = await chrome.storage.local.get(['walletState', 'selectedNetwork', 'settings']);
+    const selectedNetwork = result.selectedNetwork || 'sepolia';
+    const settings = result.settings || {};
+    const customRpcUrl = settings.customRpcUrls?.[selectedNetwork] || null;
+    
     sendResponse({
       success: true,
       data: {
         walletState: result.walletState || null,
-        selectedNetwork: result.selectedNetwork || 'sepolia',
+        selectedNetwork: selectedNetwork,
+        customRpcUrl: customRpcUrl,
       },
     });
   } catch (error: any) {
@@ -312,12 +317,19 @@ async function handleApproveTransaction(tabId: number, transaction: any) {
       // Generate unique request ID
       const requestId = Date.now().toString();
       
+      // Get custom RPC URL if configured
+      const networkResult = await chrome.storage.local.get(['selectedNetwork', 'settings']);
+      const selectedNetwork = networkResult.selectedNetwork || 'sepolia';
+      const settings = networkResult.settings || {};
+      const customRpcUrl = settings.customRpcUrls?.[selectedNetwork] || null;
+      
       // Store transaction for signer to pick up
       await chrome.storage.local.set({
         pendingSignerTransaction: {
           transaction,
           privateKey: sessionData.data.evmPrivateKey,
           requestId,
+          customRpcUrl,
         }
       });
       

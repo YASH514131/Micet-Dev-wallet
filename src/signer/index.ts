@@ -2,7 +2,7 @@
 const browser = typeof window !== 'undefined' && (window as any).browser ? (window as any).browser : chrome;
 import { ethers } from 'ethers';
 
-const SEPOLIA_RPC_URLS = [
+const DEFAULT_RPC_URLS = [
   'https://sepolia.gateway.tenderly.co',
   'https://ethereum-sepolia.publicnode.com',
   'https://rpc.sepolia.org',
@@ -65,16 +65,21 @@ window.addEventListener('load', async () => {
     
     if (result.pendingSignerTransaction) {
   // console.log('📨 Received transaction to sign:', result.pendingSignerTransaction);
-      const { transaction, privateKey, requestId } = result.pendingSignerTransaction;
+      const { transaction, privateKey, requestId, customRpcUrl } = result.pendingSignerTransaction;
       
       // Clear the pending transaction
   await browser.storage.local.remove(['pendingSignerTransaction']);
+      
+      // Build RPC list - use custom RPC first if provided
+      const RPC_URLS = customRpcUrl 
+        ? [customRpcUrl, ...DEFAULT_RPC_URLS]
+        : DEFAULT_RPC_URLS;
       
       try {
   // console.log('🔐 Signing and sending transaction...');
         
         // Try each RPC endpoint
-        for (const rpcUrl of SEPOLIA_RPC_URLS) {
+        for (const rpcUrl of RPC_URLS) {
           try {
             // console.log(`📡 Trying RPC: ${rpcUrl}`);
             const provider = new ethers.providers.JsonRpcProvider(rpcUrl);
@@ -107,8 +112,8 @@ window.addEventListener('load', async () => {
 
             let receipt;
             try {
-              // Wait up to 60 seconds for the network to mine the tx
-              receipt = await provider.waitForTransaction(sentTx.hash, 1, 60000);
+              // Wait up to 15 seconds for the network to mine the tx (reduced from 60s)
+              receipt = await provider.waitForTransaction(sentTx.hash, 1, 15000);
             } catch (_waitError: any) {
               // console.warn('⌛ Transaction not yet confirmed:', _waitError?.message || _waitError);
             }
